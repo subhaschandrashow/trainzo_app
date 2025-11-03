@@ -1,0 +1,25 @@
+{
+  "users": [
+    {
+      "email": "admin@gymdemo.com",
+      "phone": "9999999999",
+      "password": "123456",
+      "name": "Gym Admin",
+      "role": "gym_owner"
+    },
+    {
+      "email": "trainer@gymdemo.com",
+      "phone": "8888888888",
+      "password": "trainer123",
+      "name": "Gym Trainer",
+      "role": "trainer"
+    },
+    {
+      "email": "student@gymdemo.com",
+      "phone": "7777777777",
+      "password": "student123",
+      "name": "Gym Student",
+      "role": "student"
+    }
+  ]
+}
