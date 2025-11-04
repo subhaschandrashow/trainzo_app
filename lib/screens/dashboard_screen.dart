@@ -184,15 +184,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
   
 
   // Update WebView URL
- void _openMenu(String title, String viewName) {
+ void _openMenu(String title, String viewName) async {
   Navigator.pop(context); // close drawer first
 
   if (viewName == 'scan_qr') {
-    // Open scanner page
-    Navigator.push(
+    // 🧭 Open scanner and wait for result
+    final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ScannerPage()),
+      MaterialPageRoute(builder: (_) => const ScannerPage()),
     );
+
+    if (result != null && result is String) 
+    {
+      // 🧠 Check if it's a valid URL
+      final isUrl = Uri.tryParse(result)?.hasAbsolutePath ?? false;
+
+      if (isUrl) {
+        setState(() {
+          currentTitle = "Scanned Link";
+          currentUrl = result.contains("http")
+              ? result
+              : "https://$result"; // ensure it’s absolute
+        });
+      }
+      else {
+        // 📢 Show the scanned text in a dialog
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('QR Scan Result'),
+              content: Text(result),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    }
   } else {
     // Open WebView for other views
     setState(() {
