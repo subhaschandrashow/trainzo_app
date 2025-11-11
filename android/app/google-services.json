@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "785769641631",
+    "project_id": "trainzo-app",
+    "storage_bucket": "trainzo-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:785769641631:android:8b7ad07f59f36767f5d4aa",
+        "android_client_info": {
+          "package_name": "com.example.trainzo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWcaBYgNEYAKhwkCB6WSfAq5u5KPUzgFE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

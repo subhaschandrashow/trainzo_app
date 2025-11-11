@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'webview/webview_screen.dart'; // your WebViewPage class
 
 class ScannerPage extends StatefulWidget {
-  const ScannerPage({Key? key}) : super(key: key);
+  const ScannerPage({super.key});
 
   @override
   State<ScannerPage> createState() => _ScannerPageState();
@@ -55,7 +55,7 @@ class _ScannerPageState extends State<ScannerPage> {
         MaterialPageRoute(
           builder: (_) => WebViewPage(
             title: 'Home',
-            url: 'https://demo.trainzo.fit/index.php?session_id=$sessionId&from_app=1',
+            url: 'https://app.trainzo.fit/index.php?session_id=$sessionId&from_app=1',
             sessionId: sessionId,
           ),
         ),

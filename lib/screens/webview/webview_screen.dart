@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../utils/constants.dart';
 
 class WebViewPage extends StatefulWidget {
   final String title;
@@ -59,23 +57,43 @@ class _WebViewPageState extends State<WebViewPage> {
   }
 
   Future<void> _pickImageAndSendToWeb() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    // Ask user: camera or gallery
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Capture Photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final XFile? image = await _picker.pickImage(source: source);
     if (image != null) {
       final bytes = await image.readAsBytes();
       final base64Image = base64Encode(bytes);
 
-      // Send the base64 string back to the WebView
       final js = """
         (function() {
-          const input = document.querySelector('input[name="cover_img"]');
+          const input = document.querySelector('input[name="avatar"]');
           if (input) {
             const blob = Uint8Array.from(atob('$base64Image'), c => c.charCodeAt(0));
             const file = new File([blob], '${image.name}');
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
             input.files = dataTransfer.files;
-
-            // Trigger change event
             const event = new Event('change', { bubbles: true });
             input.dispatchEvent(event);
           }
@@ -84,6 +102,7 @@ class _WebViewPageState extends State<WebViewPage> {
       _controller.runJavaScript(js);
     }
   }
+
 
   Future<bool> _onWillPop() async {
     if (await _controller.canGoBack()) {
@@ -98,10 +117,6 @@ class _WebViewPageState extends State<WebViewPage> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-          backgroundColor: Colors.blueAccent,
-        ),
         body: Stack(
           children: [
             WebViewWidget(controller: _controller),

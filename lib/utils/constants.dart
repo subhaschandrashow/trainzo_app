@@ -2,7 +2,7 @@
 
 class Constants {
   // 🌐 Root Website URL
-  static const String rootUrl = "https://demo.trainzo.fit";
+  static const String rootUrl = "https://app.trainzo.fit";
   // 🌐 Base API URL
   static const String apiBaseUrl = "$rootUrl/api";
 

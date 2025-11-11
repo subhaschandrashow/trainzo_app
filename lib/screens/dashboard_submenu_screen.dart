@@ -5,10 +5,10 @@ class DashboardSubmenuScreen extends StatelessWidget {
   final List<dynamic> submenus;
 
   const DashboardSubmenuScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.submenus,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

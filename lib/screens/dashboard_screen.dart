@@ -1,13 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'webview/webview_screen.dart'; // We'll reuse WebViewPage
+import 'webview/webview_screen.dart';
 import 'login_screen.dart';
 import 'scanner.dart';
 import '../utils/constants.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic> user;
-  const DashboardScreen({required this.user, Key? key}) : super(key: key);
+  const DashboardScreen({required this.user, super.key});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -18,108 +20,209 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String currentTitle = "Dashboard";
   String sessionId = "";
   String role = "";
+  bool _sessionChecked = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSession();
+    _verifySession();
   }
 
-  Future<void> _loadSession() async {
+  /// ✅ Verify session validity before loading dashboard
+  Future<void> _verifySession() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      sessionId = prefs.getString('sessionId') ?? '';
-      role = prefs.getString('role') ?? '';
-      currentUrl = "${Constants.rootUrl}/index.php?view=dashboard&session_id=$sessionId&from_app=1";
-    });
+    sessionId = prefs.getString('sessionId') ?? '';
+    role = prefs.getString('role') ?? '';
+
+    if (sessionId.isEmpty) {
+      _logout();
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse("${Constants.rootUrl}/api/restore_session.php?session_id=$sessionId"),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data['success'] == true) {
+          setState(() {
+            _sessionChecked = true;
+            sessionId = data['session_id'];
+            currentUrl =
+                "${Constants.rootUrl}/index.php?view=dashboard&session_id=$sessionId&from_app=1";
+          });
+        } else {
+          _logout(); // Session expired
+        }
+      } else {
+        _logout();
+      }
+    } catch (e) {
+      print("Session verify error: $e");
+      _logout();
+    }
   }
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => LoginScreen()),
-    );
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => LoginScreen()),
+      );
+    }
   }
 
-  // Dashboard menus and submenus
+  // 🔸 Dashboard menus
   List<Map<String, dynamic>> getMenus() {
-    if (role == 'gym_owner') {
-      return [
+    final baseMenus = <Map<String, dynamic>>[];
+
+    if (role == 'saas_admin') {
+      baseMenus.addAll([
         {
-          'title': 'Gyms',
-          'icon': Icons.location_city,
-          'submenus': {
-            'All Gyms': 'gyms',
-            'Membership Plans': 'membership_plans',
-            'Subscriptions': 'subscriptions',
-            'Announcements': 'announcements',
-            'Feedback': 'feedbacks',
-            'Equipments': 'equipments',
-            'Equipment Log': 'equipment_logs',
-            'Maintenance Requests': 'maintainance_requests',
-          },
+        'title': 'Gyms',
+        'icon': Icons.location_city,
+        'submenus': {
+          'All Gyms': 'gyms',
         },
-        {
-          'title': 'Trainers',
-          'icon': Icons.people,
-          'submenus': {
-            'All Trainers': 'trainers',
-            'Trainer Schedules': 'trainer_schedules',
-            'Trainer Attendances': 'trainer_attendance',
-          },
+       },
+       {
+        'title': 'Users',
+        'icon': Icons.people,
+        'submenus': {
+          'Users': 'users'
         },
-        {
-          'title': 'Students',
-          'icon': Icons.person,
-          'submenus': {
-            'All Students': 'students',
-            'Student Attendances': 'student_attendance',
-            'Attendance Register': 'attendance_register',
-            'Absentee Report': 'absentee_report',
-            'Personal Training': 'personal_training',
-            'Assign Workout': 'student_workouts',
-            'Assign Diet': 'student_diets',
-            'Progress Tracking': 'student_progress',
-            'Achievements': 'student_achievements',
-          },
+      },
+      {
+        'title': 'Gym Owners',
+        'icon': Icons.people,
+        'submenus': {
+          'Gym Owners': 'gym_owners'
         },
-        {
-          'title': 'Finances',
-          'icon': Icons.account_balance_wallet,
-          'submenus': {
-            'Payment List': 'payments',
-            'Invoice List': 'invoice_list',
-            'Revenue Reports': 'revenue_reports',
-            'Link Barcode': 'link_barcode',
-          },
+      },
+      {
+        'title': 'Students',
+        'icon': Icons.people,
+        'submenus': {
+          'Students': 'students'
         },
-        {
-          'title': 'System',
-          'icon': Icons.settings,
-          'submenus': {
-            'Subscriptions': 'saas_subscription',
-            'Billing History': 'billing_history',
-            'Make Payment': 'renew_membership',
-          },
+      },
+      {
+        'title': 'Trainers',
+        'icon': Icons.people,
+        'submenus': {
+          'Trainers': 'trainers'
         },
-        {
-          'title': 'Logout',
-          'icon': Icons.logout,
-          'submenus': {},
+      },
+      {
+        'title': 'Plans',
+        'icon': Icons.people,
+        'submenus': {
+          'Plans': 'plans'
         },
-      ];
+      },
+      {
+        'title': 'Subscriptions',
+        'icon': Icons.people,
+        'submenus': {
+          'Subscriptions': 'gym_owners_subscriptions'
+        },
+      },
+      {
+        'title': 'Settings',
+        'icon': Icons.people,
+        'submenus': {
+          'Settings': 'settings'
+        },
+      },
+      {
+        'title': 'Developer Options',
+        'icon': Icons.people,
+        'submenus': {
+          'Developer Options': 'developer_options'
+        }
+      },
+
+      ]);
+
     }
-    else if (role == 'trainer')
-    {
-      return [
+    else if (role == 'gym_owner') {
+      baseMenus.addAll([
+      {
+        'title': 'Gyms',
+        'icon': Icons.location_city,
+        'submenus': {
+          'All Gyms': 'gyms',
+          'Membership Plans': 'membership_plans',
+          'Subscriptions': 'subscriptions',
+          'Announcements': 'announcements',
+          'Feedback': 'feedbacks',
+          'Equipments': 'equipments',
+          'Equipment Log': 'equipment_logs',
+          'Maintenance Requests': 'maintainance_requests',
+        },
+      },
+      {
+        'title': 'Trainers',
+        'icon': Icons.people,
+        'submenus': {
+          'All Trainers': 'trainers',
+          'Trainer Schedules': 'trainer_schedules',
+          'Trainer Attendances': 'trainer_attendance',
+        },
+      },
+      {
+        'title': 'Students',
+        'icon': Icons.person,
+        'submenus': {
+          'All Students': 'students',
+          'Student Attendances': 'student_attendance',
+          'Attendance Register': 'attendance_register',
+          'Absentee Report': 'absentee_report',
+          'Personal Training': 'personal_training',
+          'Assign Workout': 'student_workouts',
+          'Assign Diet': 'student_diets',
+          'Progress Tracking': 'student_progress',
+          'Achievements': 'student_achievements',
+        },
+      },
+      {
+        'title': 'My Profile',
+        'icon': Icons.person_pin,
+        'submenus': {
+          'View Profile': 'profile',
+        },
+      },
+      {
+        'title': 'Finances',
+        'icon': Icons.account_balance_wallet,
+        'submenus': {
+          'Payment List': 'payments',
+          'Invoice List': 'invoice_list',
+          'Revenue Reports': 'revenue_reports',
+          'Link Barcode': 'link_barcode',
+        },
+      },
+      {
+        'title': 'System',
+        'icon': Icons.settings,
+        'submenus': {
+          'Subscriptions': 'saas_subscription',
+          'Billing History': 'billing_history',
+          'Make Payment': 'renew_membership',
+        },
+      },
+    ]);
+    } else if (role == 'trainer') {
+      baseMenus.addAll([
         {
           'title': 'My Zone',
           'icon': Icons.location_city,
-          'submenus': {
-            'My Schedule': 'trainer_schedules',
-          },
+          'submenus': {'My Schedule': 'trainer_schedules'},
         },
         {
           'title': 'Students',
@@ -135,19 +238,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           },
         },
         {
-          'title': 'Logout',
-          'icon': Icons.logout,
-          'submenus': {},
-        },
-      ];
-
-    }
-    else if (role == 'student')
-    {
-      return [
+          'title': 'My Profile',
+          'icon': Icons.person_pin,
+          'submenus': {'View Profile': 'profile'},
+        }
+      ]);
+    } else if (role == 'student') {
+      baseMenus.addAll([
         {
           'title': 'My TODOS',
-          'icon': Icons.location_city,
+          'icon': Icons.task,
           'submenus': {
             'Workout Plans': 'student_workouts',
             'Diet Plans': 'student_diets',
@@ -155,7 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
         {
           'title': 'Membership',
-          'icon': Icons.person,
+          'icon': Icons.receipt_long,
           'submenus': {
             'My Membership': 'subscriptions',
             'Invoice List': 'invoice_list',
@@ -164,81 +264,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
           },
         },
         {
-          'title': 'Scanner',
-          'icon': Icons.qr_code_scanner,
-          'submenus': {
-            'Scan QR': 'scan_qr', // special identifier for scanner
-          },
+          'title': 'My Profile',
+          'icon': Icons.person_pin,
+          'submenus': {'View Profile': 'profile'},
         },
         {
-          'title': 'Logout',
-          'icon': Icons.logout,
-          'submenus': {},
+          'title': 'Scanner',
+          'icon': Icons.qr_code_scanner,
+          'submenus': {'Scan QR': 'scan_qr'},
         },
-      ];
-
+      ]);
     }
 
-    return [];
+    baseMenus.add({
+      'title': 'Logout',
+      'icon': Icons.logout,
+      'submenus': {},
+    });
+
+    return baseMenus;
   }
-  
 
-  // Update WebView URL
- void _openMenu(String title, String viewName) async {
-  Navigator.pop(context); // close drawer first
+  // 🔸 Handle menu actions
+  void _openMenu(String title, String viewName) async {
+    Navigator.pop(context);
 
-  if (viewName == 'scan_qr') {
-    // 🧭 Open scanner and wait for result
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ScannerPage()),
-    );
+    if (viewName == 'scan_qr') {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ScannerPage()),
+      );
 
-    if (result != null && result is String) 
-    {
-      // 🧠 Check if it's a valid URL
-      final isUrl = Uri.tryParse(result)?.hasAbsolutePath ?? false;
+      if (result != null && result is String) {
+        final isUrl = Uri.tryParse(result)?.hasAbsolutePath ?? false;
 
-      if (isUrl) {
-        setState(() {
-          currentTitle = "Scanned Link";
-          currentUrl = result.contains("http")
-              ? result
-              : "https://$result"; // ensure it’s absolute
-        });
-      }
-      else {
-        // 📢 Show the scanned text in a dialog
-        if (context.mounted) {
-          showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('QR Scan Result'),
-              content: Text(result),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-          );
+        if (isUrl) {
+          setState(() {
+            currentTitle = "Scanned Link";
+            currentUrl = result.contains("http") ? result : "https://$result";
+          });
         }
       }
+    } else {
+      setState(() {
+        currentTitle = title;
+        currentUrl =
+            "${Constants.rootUrl}/index.php?view=$viewName&session_id=$sessionId&from_app=1";
+      });
     }
-  } else {
-    // Open WebView for other views
-    setState(() {
-      currentTitle = title;
-      currentUrl =
-          "${Constants.rootUrl}/index.php?view=$viewName&session_id=$sessionId&from_app=1";
-    });
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
+    if (!_sessionChecked) {
+      return Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.red.shade700),
+        ),
+      );
+    }
+
     final menus = getMenus();
 
     return Scaffold(
@@ -306,7 +391,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   final viewName = entry.value.toString();
                   return ListTile(
                     dense: true,
-                    leading: const Icon(Icons.arrow_right, color: Colors.black54),
+                    leading:
+                        const Icon(Icons.arrow_right, color: Colors.black54),
                     title: Text(
                       subTitle,
                       style: const TextStyle(fontWeight: FontWeight.w500),
@@ -315,12 +401,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   );
                 }).toList(),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
       body: WebViewPage(
-        key: ValueKey(currentUrl), // ⚡ important: forces rebuild on URL change
+        key: ValueKey(currentUrl),
         title: currentTitle,
         url: currentUrl,
         sessionId: sessionId,

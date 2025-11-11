@@ -3,7 +3,7 @@ import '../services/gym_api_service.dart';
 
 class GymsScreen extends StatefulWidget {
   final int userId;
-  const GymsScreen({required this.userId, Key? key}) : super(key: key);
+  const GymsScreen({required this.userId, super.key});
 
   @override
   State<GymsScreen> createState() => _GymsScreenState();
