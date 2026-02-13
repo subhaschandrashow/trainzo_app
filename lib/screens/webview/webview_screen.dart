@@ -45,18 +45,20 @@ class _WebViewPageState extends State<WebViewPage> {
         ),
       )
       ..addJavaScriptChannel(
-        'FlutterUpload', // JS channel name
+        'FlutterUpload',
         onMessageReceived: (message) async {
-          // Expecting message: "pick_image"
-          if (message.message == 'pick_image') {
-            await _pickImageAndSendToWeb();
+          final parts = message.message.split(':');
+
+          if (parts[0] == 'pick_image') {
+            final inputId = parts.length > 1 ? parts[1] : null;
+            await _pickImageAndSendToWeb(inputId);
           }
         },
       )
       ..loadRequest(Uri.parse(finalUrl));
   }
 
-  Future<void> _pickImageAndSendToWeb() async {
+  Future<void> _pickImageAndSendToWeb(String? inputId) async {
     // Ask user: camera or gallery
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -86,18 +88,25 @@ class _WebViewPageState extends State<WebViewPage> {
       final base64Image = base64Encode(bytes);
 
       final js = """
-        (function() {
-          const input = document.querySelector('input[name="avatar"]');
-          if (input) {
-            const blob = Uint8Array.from(atob('$base64Image'), c => c.charCodeAt(0));
-            const file = new File([blob], '${image.name}');
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            input.files = dataTransfer.files;
-            const event = new Event('change', { bubbles: true });
-            input.dispatchEvent(event);
+      (function() {
+        const input = document.getElementById('$inputId');
+        if (input) {
+          const byteCharacters = atob('$base64Image');
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
           }
-        })();
+          const byteArray = new Uint8Array(byteNumbers);
+
+          const file = new File([byteArray], '${image.name}');
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          input.files = dataTransfer.files;
+
+          const event = new Event('change', { bubbles: true });
+          input.dispatchEvent(event);
+        }
+      })();
       """;
       _controller.runJavaScript(js);
     }
