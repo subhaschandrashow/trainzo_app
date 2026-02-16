@@ -2,17 +2,16 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WebViewPage extends StatefulWidget {
   final String title;
   final String url;
-  final String? sessionId; // Optional for shared login
 
   const WebViewPage({
     super.key,
     required this.title,
     required this.url,
-    this.sessionId,
   });
 
   @override
@@ -20,28 +19,59 @@ class WebViewPage extends StatefulWidget {
 }
 
 class _WebViewPageState extends State<WebViewPage> {
-  late final WebViewController _controller;
+  WebViewController? _controller;
   bool isLoading = true;
   final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    _initializeWebView();
+  }
 
-    // ✅ Append session ID if provided
+  Future<void> _initializeWebView() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('authToken');
+
     String finalUrl = widget.url;
-    if (widget.sessionId != null && widget.sessionId!.isNotEmpty) {
-      final separator = finalUrl.contains('?') ? '&' : '?';
-      finalUrl = '$finalUrl${separator}session_id=${widget.sessionId}&from_app=1';
+
+    if (token != null && token.isNotEmpty) {
+      final originalUri = Uri.parse(widget.url);
+
+      final updatedRedirectUri = originalUri.replace(
+        queryParameters: {
+          ...originalUri.queryParameters,
+          'from_app': '1',
+        },
+      );
+
+      final mobileLoginUri = Uri(
+        scheme: originalUri.scheme,
+        host: originalUri.host,
+        port: originalUri.hasPort ? originalUri.port : null,
+        path: '/api/mobile_login.php',
+        queryParameters: {
+          'token': token,
+          'redirect': updatedRedirectUri.toString(),
+        },
+      );
+
+      finalUrl = mobileLoginUri.toString();
     }
 
-    // ✅ Initialize controller
-    _controller = WebViewController()
+    final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) => setState(() => isLoading = true),
-          onPageFinished: (_) => setState(() => isLoading = false),
+          onPageStarted: (url) {
+            setState(() => isLoading = true);
+          },
+          onPageFinished: (url) {
+            setState(() => isLoading = false);
+          },
+          onWebResourceError: (error) {
+            setState(() => isLoading = false);
+          },
         ),
       )
       ..addJavaScriptChannel(
@@ -56,10 +86,15 @@ class _WebViewPageState extends State<WebViewPage> {
         },
       )
       ..loadRequest(Uri.parse(finalUrl));
+
+    setState(() {
+      _controller = controller;
+    });
   }
 
   Future<void> _pickImageAndSendToWeb(String? inputId) async {
-    // Ask user: camera or gallery
+    if (_controller == null) return;
+
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (context) => SafeArea(
@@ -108,14 +143,14 @@ class _WebViewPageState extends State<WebViewPage> {
         }
       })();
       """;
-      _controller.runJavaScript(js);
+
+      _controller!.runJavaScript(js);
     }
   }
 
-
   Future<bool> _onWillPop() async {
-    if (await _controller.canGoBack()) {
-      _controller.goBack();
+    if (_controller != null && await _controller!.canGoBack()) {
+      _controller!.goBack();
       return false;
     }
     return true;
@@ -123,12 +158,18 @@ class _WebViewPageState extends State<WebViewPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_controller == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
         body: Stack(
           children: [
-            WebViewWidget(controller: _controller),
+            WebViewWidget(controller: _controller!),
             if (isLoading)
               const Center(child: CircularProgressIndicator()),
           ],

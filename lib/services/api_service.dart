@@ -16,8 +16,9 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
         if (data['success'] == true) {
-          return data['user']; // just user info
+          return data; // return full data (token + user)
         } else {
           print("Login failed: ${data['message']}");
         }
@@ -27,6 +28,8 @@ class ApiService {
     } catch (e) {
       print("Login exception: $e");
     }
+
     return null;
   }
+
 }

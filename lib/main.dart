@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'screens/splash_screen.dart';
 import 'utils/constants.dart'; // optional if you want to send token to backend
+import 'package:flutter/foundation.dart';
 
 // 🔔 Handles background messages (when app is terminated or backgrounded)
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -20,7 +21,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase
-  await Firebase.initializeApp();
+  
+  if (!kIsWeb) {
+    await Firebase.initializeApp();
+  }
 
   // Initialize local notifications (for foreground display)
   const AndroidInitializationSettings initializationSettingsAndroid =

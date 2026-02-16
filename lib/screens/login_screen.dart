@@ -22,21 +22,26 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    final success = await ApiService().loginUser(
+    final response = await ApiService().loginUser(
       _emailOrPhone.text.trim(),
       _password.text.trim(),
     );
 
     setState(() => _loading = false);
 
-    if (success != null) {
-      await saveLogin(success); // ✅ save user info locally
+    if (response != null) {
+      final user = response['user'];
+      final token = response['token'];
+
+      await saveLogin(user, token);
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => DashboardScreen(user: success)),
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(user: user),
+        ),
       );
-    }
-    else {
+    } else {
       setState(() => _errorMessage = "Invalid credentials");
     }
   }
@@ -48,12 +53,10 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Center(
         child: SingleChildScrollView(
           child: Card(
-            color: Colors.white, // 👈 background color here
+            color: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              // background color
               side: BorderSide(color: Colors.blue.shade100, width: 1),
-              
             ),
             elevation: 8,
             margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -62,9 +65,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ✅ Replace this with your own logo
                   Image.asset(
-                    'assets/images/logo.png', // make sure this path exists
+                    'assets/images/logo.png',
                     height: 100,
                   ),
                   const SizedBox(height: 20),
@@ -111,6 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
 
                   const SizedBox(height: 10),
+
                   _loading
                       ? const CircularProgressIndicator()
                       : SizedBox(
@@ -129,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -143,14 +146,15 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> saveLogin(Map<String, dynamic> user) async {
+  Future<void> saveLogin(
+      Map<String, dynamic> user, String token) async {
     final prefs = await SharedPreferences.getInstance();
+
     await prefs.setBool('isLoggedIn', true);
+    await prefs.setString('authToken', token);
     await prefs.setString('userId', user['id'].toString());
     await prefs.setString('name', user['name']);
     await prefs.setString('email', user['email']);
     await prefs.setString('role', user['role']);
-    await prefs.setString('sessionId', user['session_id']); // ✅ save session
   }
-
 }

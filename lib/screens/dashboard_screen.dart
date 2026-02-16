@@ -31,51 +31,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// ✅ Verify session validity before loading dashboard
   Future<void> _verifySession() async {
     final prefs = await SharedPreferences.getInstance();
-    sessionId = prefs.getString('sessionId') ?? '';
+    final token = prefs.getString('authToken');
     role = prefs.getString('role') ?? '';
 
-    if (sessionId.isEmpty) {
+    if (token == null || token.isEmpty) {
       _logout();
       return;
     }
 
-    try {
-      final response = await http.get(
-        Uri.parse("${Constants.rootUrl}/api/restore_session.php?session_id=$sessionId"),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data['success'] == true) {
-          setState(() {
-            _sessionChecked = true;
-            sessionId = data['session_id'];
-            currentUrl =
-                "${Constants.rootUrl}/index.php?view=dashboard&session_id=$sessionId&from_app=1";
-          });
-        } else {
-          _logout(); // Session expired
-        }
-      } else {
-        _logout();
-      }
-    } catch (e) {
-      print("Session verify error: $e");
-      _logout();
-    }
+    setState(() {
+      _sessionChecked = true;
+      currentUrl = "${Constants.rootUrl}/index.php?view=dashboard";
+    });
   }
+
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('authToken');
+
+    try {
+      if (token != null && token.isNotEmpty) {
+        await http.post(
+          Uri.parse("${Constants.apiBaseUrl}/logout.php"),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        );
+      }
+    } catch (e) {
+      print("Logout API error: $e");
+    }
+
     await prefs.clear();
+
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => LoginScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     }
   }
+
 
   // 🔸 Dashboard menus
   List<Map<String, dynamic>> getMenus() {
@@ -229,7 +227,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'icon': Icons.person,
           'submenus': {
             'All Students': 'students',
+            'Personal Training': 'personal_training',
             'Student Attendances': 'student_attendance',
+            'Trainer Attendances': 'trainer_attendance',
             'Attendance Register': 'attendance_register',
             'Assign Workout': 'student_workouts',
             'Assign Diet': 'student_diets',
@@ -241,7 +241,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'title': 'My Profile',
           'icon': Icons.person_pin,
           'submenus': {'View Profile': 'profile'},
-        }
+        },
+        {
+          'title': 'Scanner',
+          'icon': Icons.qr_code_scanner,
+          'submenus': {'Scan QR': 'scan_qr'},
+        },
       ]);
     } else if (role == 'student') {
       baseMenus.addAll([
@@ -309,7 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() {
         currentTitle = title;
         currentUrl =
-            "${Constants.rootUrl}/index.php?view=$viewName&session_id=$sessionId&from_app=1";
+            "${Constants.rootUrl}/index.php?view=$viewName&from_app=1";
       });
     }
   }
@@ -409,7 +414,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         key: ValueKey(currentUrl),
         title: currentTitle,
         url: currentUrl,
-        sessionId: sessionId,
       ),
     );
   }

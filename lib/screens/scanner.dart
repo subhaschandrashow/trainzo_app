@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'webview/webview_screen.dart'; // your WebViewPage class
+import '../utils/constants.dart';
 
 class ScannerPage extends StatefulWidget {
   const ScannerPage({super.key});
@@ -46,7 +47,12 @@ class _ScannerPageState extends State<ScannerPage> {
           _showSnack('⚠️ ${data['message'] ?? 'Action failed'}');
         }
       } else {
-        _showSnack('QR processed successfully');
+        // Show status code and response body for debugging
+        _showSnack(
+          '⚠️ QR processed, but unexpected response:\n'
+          'Status: ${response.statusCode}\n'
+          'Body: ${response.body.isNotEmpty ? response.body : 'No response body'}',
+        );
       }
 
       // ✅ Redirect to homepage after scan
@@ -55,8 +61,7 @@ class _ScannerPageState extends State<ScannerPage> {
         MaterialPageRoute(
           builder: (_) => WebViewPage(
             title: 'Home',
-            url: 'https://app.trainzo.fit/index.php?session_id=$sessionId&from_app=1',
-            sessionId: sessionId,
+            url: '${Constants.rootUrl}/index.php?from_app=1',
           ),
         ),
       );
